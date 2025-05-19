@@ -196,6 +196,54 @@ class SpamClassifierApp:
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo entrenar: {str(e)}")
     
+    def classify_emails_gui(self):
+        ham_dir = filedialog.askdirectory(title="Selecciona la carpeta HAM a clasificar")
+        if not ham_dir: return
+            
+        spam_dir = filedialog.askdirectory(title="Selecciona la carpeta SPAM a clasificar")
+        if not spam_dir: return
+            
+        try:
+            results = classify_emails(ham_dir, spam_dir, self.model, self.tokenizer, self.maxlen)
+            self.show_results(results)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo clasificar: {str(e)}")
+        
+    def show_results(self, results_df):
+        spam_count = sum(results_df['prediction'] == 'SPAM')
+        ham_count = sum(results_df['prediction'] == 'HAM')
+        total = spam_count + ham_count
+        
+        result_window = tk.Toplevel(self.root)
+        result_window.title("Resultados")
+        result_window.geometry("500x400")
+        
+        fig, ax = plt.subplots(figsize=(5, 4))
+        
+        categories = ['HAM', 'SPAM']
+        counts = [ham_count, spam_count]
+        colors = ['green', 'red']
+        
+        bars = ax.bar(categories, counts, color=colors)
+        
+        for bar, count in zip(bars, counts):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{count}\n({count/total:.1%})',
+                    ha='center', va='bottom')
+        
+        ax.set_title(f'Resultados ({total} correos)')
+        ax.set_ylabel('Cantidad')
+        
+        canvas = FigureCanvasTkAgg(fig, master=result_window)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        ttk.Button(result_window, text="Cerrar", command=result_window.destroy).pack(pady=10)
 
-    
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = SpamClassifierApp(root)
+    root.mainloop()
+        
     
