@@ -112,5 +112,49 @@ def train_model(ham_dir, spam_dir):
     )
 
     early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+
+    print("\n=== ENTRENAMIENTO ===")
+    print("Época | Precisión | Pérdida | Val. Precisión | Val. Pérdida")
+    print("----------------------------------------------------------")
+    
+    history = model.fit(
+        X_train, y_train,
+        epochs=20,
+        batch_size=64,
+        validation_data=(X_test, y_test),
+        callbacks=[early_stop, TrainingProgress()],
+        class_weight={0: 1, 1: len(y_train[y_train==0])/len(y_train[y_train==1])},
+        verbose=0
+    )
+
+    save_model(model, tokenizer, maxlen)
+    
+    # Resultados finales
+    final_accuracy = history.history['val_accuracy'][-1]
+    final_loss = history.history['val_loss'][-1]
+    print("\n=== RESULTADOS FINALES ===")
+    print(f"Precisión final en validación: {final_accuracy:.4f}")
+    print(f"Pérdida final en validación: {final_loss:.4f}")
+    
+    return model, tokenizer, maxlen
+
+def classify_emails(ham_dir, spam_dir, model, tokenizer, maxlen):
+    df_new_ham = load_emails(ham_dir, 0)
+    df_new_spam = load_emails(spam_dir, 1)
+    df_new = pd.concat([df_new_ham, df_new_spam])
+    
+    if len(df_new) == 0:
+        raise ValueError("No se encontraron archivos para clasificar.")
+    
+    df_new['text'] = df_new['text'].apply(clean_email)
+    X_new = tokenizer.texts_to_sequences(df_new['text'])
+    X_new = pad_sequences(X_new, maxlen=maxlen, padding='post', truncating='post')
+    
+    predictions = model.predict(X_new, verbose=0)
+    df_new['prediction'] = ['SPAM' if x > 0.5 else 'HAM' for x in predictions]
+    
+    return df_new
+
+
     
     
