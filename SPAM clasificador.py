@@ -155,6 +155,31 @@ def classify_emails(ham_dir, spam_dir, model, tokenizer, maxlen):
     
     return df_new
 
+# --- Interfaz gráfica ---
+class SpamClassifierApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Clasificador de Spam/HAM")
+        self.root.geometry("400x200")
+        
+        self.model, self.tokenizer, self.maxlen = load_saved_model()
+        
+        self.create_widgets()
+    
+    def create_widgets(self):
+        main_frame = ttk.Frame(self.root, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Button(main_frame, text="1. Entrenar Nuevo Modelo", 
+                  command=self.train_model_gui).pack(pady=10, fill=tk.X)
+        
+        ttk.Button(main_frame, text="2. Clasificar Correos", 
+                  command=self.classify_emails_gui, state='normal' if self.model else 'disabled').pack(pady=10, fill=tk.X)
+        
+        status_text = "Modelo listo" if self.model else "Modelo no cargado (entrene primero)"
+        self.status_label = ttk.Label(main_frame, text=status_text)
+        self.status_label.pack(pady=10)
+    
 
     
     
