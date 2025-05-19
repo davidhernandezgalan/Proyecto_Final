@@ -180,6 +180,22 @@ class SpamClassifierApp:
         self.status_label = ttk.Label(main_frame, text=status_text)
         self.status_label.pack(pady=10)
     
+    def train_model_gui(self):
+        ham_dir = filedialog.askdirectory(title="Selecciona la carpeta HAM")
+        if not ham_dir: return
+        
+        spam_dir = filedialog.askdirectory(title="Selecciona la carpeta SPAM")
+        if not spam_dir: return
+        
+        try:
+            messagebox.showinfo("Entrenamiento", "Entrenando modelo... Ver consola para progreso detallado.")
+            self.model, self.tokenizer, self.maxlen = train_model(ham_dir, spam_dir)
+            self.status_label.config(text="Modelo entrenado y listo")
+            self.root.children['!frame'].children['!button2'].config(state='normal')
+            messagebox.showinfo("Éxito", "Modelo entrenado correctamente.")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo entrenar: {str(e)}")
+    
 
     
     
