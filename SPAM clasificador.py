@@ -53,3 +53,64 @@ def clean_email(text):
     text = re.sub(r'\s+', ' ', text)
     return text
 
+# --- Funciones del modelo ---
+def save_model(model, tokenizer, maxlen):
+    model.save('spam_model.h5')
+    with open('tokenizer.pkl', 'wb') as handle:
+        pickle.dump((tokenizer, maxlen), handle)
+
+def load_saved_model():
+    if not (os.path.exists('spam_model.h5') and os.path.exists('tokenizer.pkl')):
+        return None, None, None
+    
+    model = load_model('spam_model.h5')
+    with open('tokenizer.pkl', 'rb') as handle:
+        tokenizer, maxlen = pickle.load(handle)
+    return model, tokenizer, maxlen
+
+def train_model(ham_dir, spam_dir):
+    print("\n=== CARGANDO DATOS ===")
+    df_spam = load_emails(spam_dir, 1)
+    df_ham = load_emails(ham_dir, 0)
+
+    if len(df_spam) == 0 or len(df_ham) == 0:
+        raise ValueError("No se cargaron archivos. Verifica las rutas.")
+
+    print(f"\nDatos cargados: {len(df_ham)} HAM | {len(df_spam)} SPAM")
+    
+    df = pd.concat([df_spam, df_ham]).sample(frac=1, random_state=42)
+    df['text'] = df['text'].apply(clean_email)
+
+    tokenizer = Tokenizer(num_words=8000, oov_token='<OOV>', filters='')
+    tokenizer.fit_on_texts(df['text'])
+    X = tokenizer.texts_to_sequences(df['text'])
+
+    lengths = [len(seq) for seq in X]
+    maxlen = int(np.percentile(lengths, 90))
+    X = pad_sequences(X, maxlen=maxlen, padding='post', truncating='post')
+    y = df['label'].values
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    model = Sequential([
+        Embedding(input_dim=8000, output_dim=128, input_length=maxlen),
+        Dropout(0.3),
+        LSTM(128, return_sequences=True),
+        Dropout(0.3),
+        LSTM(64),
+        Dense(64, activation='relu'),
+        Dropout(0.3),
+        Dense(1, activation='sigmoid')
+    ])
+
+    model.compile(
+        optimizer='adam',
+        loss='binary_crossentropy',
+        metrics=['accuracy', tf.keras.metrics.Precision(), tf.keras.metrics.Recall()]
+    )
+
+    early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+    
+    
